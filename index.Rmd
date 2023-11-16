@@ -1,7 +1,7 @@
 ---
 title: "Gov 50 Final Project"
-author: "Your Name Here"
-description: "My final project"
+author: "Zoe Yu"
+description: "Female Representation in Film"
 output:
   distill::distill_article:
     self_contained: false
@@ -11,4 +11,115 @@ output:
 
 ## Project thoughts
 
-I am interested in exploring data related to...
+What's the relationship between female representation in film and how well the film ends up performing in the box office? One popular measure of fictional female representation, the Bechdel Test, proposes three rules: the movie has to have at least two women in it, the women have to talk to each other, and they have to talk about something other than a man. In this study, I plan to analyze whether or not high-grossing movies pass the Bechdel Test, and to what extent female representation in movies has a stake in its financial performance. I hypothesize that movies that pass the Bechdel Test will be higher-grossing, as passing the Bechdel Test likely lends itself to a more complex, nuanced plotline and story that moviegoers want to see. According to a FiveThirtyEight study that examined the exclusion of women in Hollywood, my hypothesis is in line with how the movies have historically fared. My independent variable is whether or not the movie passes the Bechdel Test, and in particular which three rules that the movie satisfies, and my dependent variable is the movie's grossing. To expand on my study, I plan to also draw data from whether or not the movie was directed by a male or female director to see if gender has an impact on whether or not the movie passes the Bechdel Test and its grossing, as well as to see if the gender of the director has an impact on whether or not the movie passes the Bechdel Test in the first place. 
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+```
+
+```{r}
+movies <- read_csv("movielatest.csv")
+
+bechdel_test <- read_csv("movies.csv")
+
+df <- movies |>
+  inner_join(bechdel_test) |>
+  rename(bechdel_test = binary)
+
+df |>
+  ggplot(mapping = aes(x = gross, color = bechdel_test, na.rm = TRUE)) + 
+  geom_bar() +
+  labs(x = "Movie Grossing", y = "Frequency",
+       title = "Do High-Grossing Movies Pass the Bechdel Test?",
+       subtitle = "Data originated from FiveThirtyEight",
+       caption = "Gov 50 Final Project") +
+  theme_classic()
+```
+---
+title: "Gov 50 Final Project"
+author: "Zoe Yu"
+description: "Female Representation in Film"
+output:
+  distill::distill_article:
+    self_contained: false
+---
+
+
+
+## Project thoughts
+
+What's the relationship between female representation in film and how well the film ends up performing in the box office? One popular measure of fictional female representation, the Bechdel Test, proposes three rules: the movie has to have at least two women in it, the women have to talk to each other, and they have to talk about something other than a man. In this study, I plan to analyze whether or not high-grossing movies pass the Bechdel Test, and to what extent female representation in movies has a stake in its financial performance. I hypothesize that movies that pass the Bechdel Test will be higher-grossing, as passing the Bechdel Test likely lends itself to a more complex, nuanced plotline and story that moviegoers want to see. According to a FiveThirtyEight study that examined the exclusion of women in Hollywood, my hypothesis is in line with how the movies have historically fared. My independent variable is whether or not the movie passes the Bechdel Test, and in particular which three rules that the movie satisfies, and my dependent variable is the movie's grossing. To expand on my study, I plan to also draw data from whether or not the movie was directed by a male or female director to see if gender has an impact on whether or not the movie passes the Bechdel Test and its grossing, as well as to see if the gender of the director has an impact on whether or not the movie passes the Bechdel Test in the first place. 
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+```
+
+```{r}
+movies <- read_csv("movielatest.csv")
+
+bechdel_test <- read_csv("movies.csv")
+
+df <- movies |>
+  inner_join(bechdel_test) |>
+  rename(bechdel_test = binary)
+
+df |>
+  ggplot(mapping = aes(x = gross, color = bechdel_test, na.rm = TRUE)) + 
+  geom_bar() +
+  labs(x = "Movie Grossing", y = "Frequency",
+       title = "Do High-Grossing Movies Pass the Bechdel Test?",
+       subtitle = "Data originated from FiveThirtyEight",
+       caption = "Gov 50 Final Project") +
+  theme_classic()
+```
+According to data from the barplot, movies that fail the Bechdel Test appear to be clustered towards the lower end of the moving grossing spectrum, while movies that pass the Bechdel test appear to have a higher movie grossing, with the highest-grossing movie being classified as one that passed the Bechdel Test. However, both movies that passed and failed the Bechdel Test appear to be clustered in similar formations towards having a lower grossing, indicating that other factors, like the quality of the movie and the nature of the industry, may be at play. For my next data visualization, I plan to zoom in on both ends of the movie grossing spectrum to examine it at a more precise level, as well as factor in whether the movies were directed by male or female directors.
+
+```{r}
+movies |>
+  inner_join(bechdel_test) |>
+  mutate(bechdel_test = binary) |>
+  ggplot(aes(x = year, y = budget, color = bechdel_test, na.rm = TRUE)) +
+  geom_point() +
+  geom_smooth() +
+  labs(x = "Year", y = "Budget",
+       title = "Budgets vs. Bechdel Scores", 
+       subtitle = "Data originated from FiveThirtyEight",
+       caption = "Gov 50 Final Project") +
+  theme_classic()
+```
+According to the data from the histogram, there seems to be a trendline of increasing movie budgets from 1985 to 2016, and for movies that fail the Bechdel Test, a relatively higher budget compared to movies that pass the Bechdel Test. However, there are notable outliers of movies that passed the Bechdel Test having notably high budgets.
+
+```{r}
+df <- df |>
+  mutate(bechdel_binary = if_else(bechdel_test == "FAIL", 0, 1))
+
+cor(df$budget, df$bechdel_binary, use = "pairwise")
+
+
+df |>
+  ggplot(aes(x = budget, y = bechdel_binary)) +
+  geom_jitter() + 
+  geom_smooth(method = "lm")
+  
+
+
+```
+The negative correlation suggests that movies with a higher budget are less likely to pass the Bechdel Test.
+
+```{r}
+df <- df |>
+  mutate(bechdel_binary = if_else(bechdel_test == "FAIL", 0, 1))
+
+cor(df$gross, df$bechdel_binary, use = "pairwise")
+
+
+df |>
+  ggplot(aes(x = gross, y = bechdel_binary)) +
+  geom_jitter() + 
+  geom_smooth(method = "lm")
+```
+The negative correlation suggests that higher-grossing movies are somewhat less likely to pass the Bechdel Test.

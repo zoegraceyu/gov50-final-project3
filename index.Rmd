@@ -26,6 +26,7 @@ The second dataset originates from a second site containing financial informatio
 library(tidyverse)
 library(ggplot2)
 library(dplyr)
+library(infer)
 
 #Reading data files
 movies <- read_csv("grossing.csv")
@@ -72,29 +73,13 @@ bechdel_plot
 ```
 Based on the boxplot above, the distribution of movie grossing appears to be relatively uniform across Bechdel pass/fail statuses. Movies that passed the Bechdel Test, however, have a lower minimum, median, 25th percentile, and 75th percentile compared to movies that failed the Bechdel Test. In addition, movies that passed the Bechdel Test have more outliers clustered on the lower end of grossing compared to movies that failed the test; movies that passed also have a more pronounced outlier that far exceeds the median grossing threshold for both statuses.
 
-# Correlation Between Bechdel Pass/Fail Status and Grossing
+# Regression Models
 ```{r}
 #Coding y-variable as numeric
 bechdel_movies <- bechdel_movies |>
   mutate(bechdel_binary = if_else(bechdel_test == "FAIL", 0, 1))
 
-#Calculating correlation between Bechdel pass/fail status and grossing
-cor(bechdel_movies$gross, bechdel_movies$bechdel_binary, use = "pairwise")
-
-#Plotting correlation
-bechdel_movies |>
-  ggplot(aes(x = gross, y = bechdel_binary)) +
-  geom_jitter() + 
-  geom_smooth(method = "lm", color = "darkturquoise") +
-  theme_classic() +
-  labs(x = "Grossing", y = "Bechdel Pass/Fail Status",
-       title = "Correlation Between Bechdel Pass/Fail Status and Grossing",
-       caption = "Gov 50 Final Project")
-```
-To further explore the relationship between Bechdel pass/fail status and grossing, I calculated the correlation between the two variables, finding a correlation of -0.071. The weak negative correlation suggests that higher-grossing movies are less likely to pass the Bechdel Test. After plotting the line of best fit, the scattered data points and best fit line reaffirm the conclusion that there is a weak negative correlation between the two variables.
-
-# Regression Models
-```{r}
+#Calculating regression
 bechdel_fit <- lm(gross ~ bechdel_binary, bechdel_movies)
 
 var_labels <- c(
@@ -107,9 +92,10 @@ modelsummary::modelsummary(bechdel_fit,
                            coef_map = var_labels,
                            gof_map = c("nobs", "r.squared", "adj.r.squared"))
 ```
-To evaluate the statistical significance of this relationship, I performed a simple regression of Bechdel pass/fail status on movie grossing. Based on an alpha level of 0.05 or even 0.01, with a p-value of <0.001 that's lower than the alpha, passing or failing the Bechdel Test has a highly statistically significant effect on grossing. There is a less than 0.001 percent chance that the observed effects are due to chance alone, rejecting the null hypothesis that there is no effect between Bechdel pass/fail status and grossing.
+To evaluate the statistical significance of this relationship, I performed a simple regression of Bechdel pass/fail status on movie grossing. According to the coding of the Bechdel Test variable as a binary between 0, failing the test, and 1, passing the test, the coefficient represents that, on average, the grossing of a movie that failed the Bechdel Test is $53945637.91. Based on an alpha level of 0.05 or even 0.01, with a p-value of <0.001 that's lower than the alpha, passing or failing the Bechdel Test has a highly statistically significant effect on grossing with the Bechdel status variable alone. There is a less than 0.001 percent chance that the observed effects are due to chance alone with the isolated Bechdel status variable, rejecting the null hypothesis that there is no effect between Bechdel pass/fail status and grossing when looking only at that variable.
 
 ```{r}
+# Calculating regression
 bechdel_budget_fit <- lm(gross ~ bechdel_binary + budget, bechdel_movies)
 
 var_labels <- c(
@@ -123,10 +109,27 @@ modelsummary::modelsummary(bechdel_budget_fit,
                            coef_map = var_labels,
                            gof_map = c("nobs", "r.squared", "adj.r.squared"))
 ```
-There may, however, be other variables like budget at play. To analyze the statistical significance of budget as a control, I calculated a multiple regression. With a p-value of 0.390, passing or failing the Bechdel Test did not have a statistically significant effect. Budget, on the other hand, had a high statistical significance with a p-value of <0.001, which is significantly lower than the 0.05 or 0.01 alpha value threshold. The regression indicates that other variables unrelated to Bechdel pass/fail status may be more significant in determining grossing. I failed to reject the null hypothesis that there is no effect between Bechdel pass/fail status and grossing.
+There may, however, be other variables like budget at play. To analyze the statistical significance of budget as a control, I calculated a multiple regression. With a p-value of 0.390, passing or failing the Bechdel Test did not have a statistically significant effect. Budget, on the other hand, had a high statistical significance with a p-value of <0.001, which is significantly lower than the 0.05 or 0.01 alpha value threshold. The regression indicates that other variables unrelated to Bechdel pass/fail status, like budget, may be more significant in determining grossing. I failed to reject the null hypothesis that there is no effect between Bechdel pass/fail status and grossing.
+
+```{r}
+#Obtaining bootstrapped distribution for a difference in means
+bechdel_boots <- bechdel_movies |>
+  rep_slice_sample(prop = 1, replace = TRUE, reps = 100) |>
+  group_by(replicate, bechdel_test) |>
+  summarize(gross_mean = mean(gross, na.rm = TRUE)) |>
+  pivot_wider(names_from = bechdel_test, values_from = gross_mean) |>
+  mutate(ATE = PASS - FAIL)
+
+#Calculating confidence interval
+ate_ci_90 <- bechdel_boots |>
+  get_confidence_interval(0.90)
+
+knitr::kable(ate_ci_90, col.names = c("Lower Bound", "Upper Bound"))
+```
+To determine causal significance, a randomized experiment must be performed, as causal effect can be derived from the difference in average outcomes between the treated and control groups. I obtained the bootstrapped distribution for a difference in means for movies that passed versus failed the Bechdel Test, then calculated a 90% confidence interval. Based on the confidence interval, across much sampling, the interval -11614081 to -6155365 captures the true mean 90% of the time. Based on this confidence interval, because 0 is not included in the interval, we can conclude that we can reject the null hypothesis because no difference in means between the movie grossing between the passed and failed Bechdel Tests is not a plausible value of the true population parameter for a 90% confidence interval, indicating possible causal significance but only when the Bechdel status variable is at play.
 
 ## Conclusion
-Although the weak negative correlation indicates that there may be a relationship between passing or failing the Bechdel Test and movie grossing, the regression does not support my hypothesis that movies that pass the Bechdel Test will be higher-grossing, and I failed to reject the null hypothesis that there was no effect between the two variables. In analyzing Bechdel pass/fail status alone, the simple regression indicated statistical significance; however, when analyzing budget as a control, there was no statistical significance, indicating that other variables like budget may contribute more significantly to determining grossing. Limitations of this project include other variables besides female representation or even the examined budget as a control that may influence movie grossing, such as the presence of a popular actor or contexts like the Barbenheimer trend, that were not included in the dataset. With more time and money, I would analyze other measures of female representation, including the presence of a female director or substantially-female cast, in relation to the variables outlined above, to further examine how female representation impacts how movies perform financially.
+The p-value and confidence interval obtained from the regression and bootstrapped distributions for a difference in means indicates that the relationship between passing or failing the Bechdel Test and movie grossing is statistically significant, supporting my hypothesis that Bechdel status may have an effect on movie grossing. However, statistical significance is only demonstrated when looking at the Bechdel status variable alone; as shown by the multiple regression, when analyzing budget as a control, there was no statistical significance, indicating that other variables like budget may contribute more significantly to determining grossing. Limitations of this project include other variables besides female representation or even the examined budget as a control that may influence movie grossing, such as the presence of a popular actor or contexts like the Barbenheimer trend, that were not included in the dataset. With more time and money, I would analyze other measures of female representation, including the presence of a female director or substantially-female cast, in relation to the variables outlined above, to further examine how female representation impacts how movies perform financially.
 
 ## References
 (n.d.). Bechdel Test Movie List. https://bechdeltest.com/

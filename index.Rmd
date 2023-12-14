@@ -1,7 +1,7 @@
 ---
 title: "Do Movies That Pass the Bechdel Test Perform Better in the Box Office?"
 author: "Zoe Yu"
-description: "An analysis of the financial effects of female representation in film"
+description: "An analysis of the financial effects of female representation in film."
 output:
   distill::distill_article:
     self_contained: false
